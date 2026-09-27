@@ -3,7 +3,7 @@
 import /vendor/etc/init/hw/init.batterysecret.rc
 import /vendor/etc/init/hw/init.connectivity.rc
 import /vendor/etc/init/hw/init.mt6893.power.rc
-import /vendor/etc/init/hw/init.mt6893.usb.rc
+import /vendor/etc/init/hw/init.chopin.usb.rc
 import /vendor/etc/init/hw/init.project.rc
 import /vendor/etc/init/hw/init.sensor_2_0.rc
 import /vendor/etc/init/hw/init.mi_thermald.rc

@@ -59,9 +59,13 @@ prebuilt_etc {
     vendor: true,
 }
 
+// A17's hardware/mediatek generates its own "init.mt6893.usb.rc" through
+// soong_config_variables, which collides with this module's name and install
+// path. Keep the device-specific USB configuration, but under a unique name,
+// so that both files can coexist in /vendor/etc/init/hw.
 prebuilt_etc {
-    name: "init.mt6893.usb.rc",
-    src: "init.mt6893.usb.rc",
+    name: "init.chopin.usb.rc",
+    src: "init.chopin.usb.rc",
     sub_dir: "init/hw",
     vendor: true,
 }

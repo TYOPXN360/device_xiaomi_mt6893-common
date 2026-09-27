@@ -251,7 +251,7 @@ PRODUCT_PACKAGES += \
     init.modem.rc \
     init.mt6893.rc \
     init.mt6893.power.rc \
-    init.mt6893.usb.rc \
+    init.chopin.usb.rc \
     init.sensor_2_0.rc \
     ueventd.mt6893.rc
 
