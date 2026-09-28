@@ -71,6 +71,14 @@ BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
 TARGET_KERNEL_CLANG_VERSION := r416183b
 TARGET_KERNEL_CLANG_PATH := $(abspath .)/prebuilts/clang/kernel/$(HOST_PREBUILT_TAG)/clang-$(TARGET_KERNEL_CLANG_VERSION)
 
+# Pin the kernel to the clang it was developed and A16-built with. On the
+# Android 17 tree the kernel's clang resolves to the mainline clang-22 via the
+# build PATH, and that compiler rejects this 4.14 kernel's inline asm (global
+# register variables and "I" constraint values above 65535). An absolute path
+# leaves AOSP on clang-22; only the kernel picks this up.
+KERNEL_CC := CC="$(abspath .)/prebuilts/clang/kernel/linux-x86/clang-r416183b/bin/clang" LD=ld.lld
+
+
 TARGET_KERNEL_SOURCE := kernel/xiaomi/mt6893
 TARGET_KERNEL_CONFIG := $(PRODUCT_DEVICE)_defconfig
 
