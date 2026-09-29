@@ -1,6 +1,6 @@
 service vendor.radio-ims-bridge /vendor/bin/hw/radio-ims-bridge
     class hal
-    user system
+    user nobody
     group system
     disabled
 
