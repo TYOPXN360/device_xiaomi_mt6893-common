@@ -224,8 +224,13 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/permissions/privapp-permissions-hotword.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/privapp-permissions-hotword.xml
 
 # Power
+# libperfmgr is linked by the power HAL but is not pulled into the vendor
+# image on its own, so the HAL fails to load with
+# "library libperfmgr.so not found" and IPower/default never registers,
+# which stalls system_server during boot.
 PRODUCT_PACKAGES += \
     android.hardware.power-service.lineage-libperfmgr \
+    libperfmgr \
     vendor.mediatek.hardware.mtkpower@1.2-service.stub
 
 PRODUCT_PACKAGES += \
