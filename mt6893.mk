@@ -280,8 +280,12 @@ PRODUCT_SOONG_NAMESPACES += \
 PRODUCT_SHIPPING_API_LEVEL := 30
 
 # Thermal
+# pixelatoms-cpp is linked by the thermal HAL but is not pulled into the
+# vendor image by default, so the vendor linker fails with
+# "library pixelatoms-cpp.so not found" and the HAL exits before boot.
 PRODUCT_PACKAGES += \
-    android.hardware.thermal-service.mediatek
+    android.hardware.thermal-service.mediatek \
+    pixelatoms-cpp
 
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/thermal_info_config.json:$(TARGET_COPY_OUT_VENDOR)/etc/thermal_info_config.json
