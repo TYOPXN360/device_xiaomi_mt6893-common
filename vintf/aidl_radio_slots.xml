@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AIDL radio instances served by android.hardware.radio-service.compat.
+
+    The MediaTek RIL only provides the HIDL radio HAL, while the Android 17
+    framework probes for the AIDL interfaces (RIL.isRadioServiceSupported()
+    calls ServiceManager.isDeclared() on e.g.
+    android.hardware.radio.ims.IRadioIms/slot1). The compat bridge refuses to
+    publish an instance that is not declared - publishRadioHal() bails out with
+    "is not declared in VINTF" - and its own radio-compat.xml leaves every
+    per-slot entry commented out. Without these declarations nothing but
+    IRadioConfig/default ever gets registered and the framework logs
+    "Feature android.hardware.telephony.<x> is declared, but service ... is
+    missing" for voice, data, messaging and ims.
+
+    Declare the two slots this device exposes. Instances the bridge does not
+    publish (and the MTK-specific em/se/ims ones) are intentionally omitted so
+    the bridge simply skips them.
+-->
+<manifest version="1.0" type="device">
+    <hal format="aidl">
+        <name>android.hardware.radio.data</name>
+        <fqname>IRadioData/slot1</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.messaging</name>
+        <fqname>IRadioMessaging/slot1</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.modem</name>
+        <fqname>IRadioModem/slot1</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.network</name>
+        <fqname>IRadioNetwork/slot1</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.sim</name>
+        <fqname>IRadioSim/slot1</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.voice</name>
+        <fqname>IRadioVoice/slot1</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.data</name>
+        <fqname>IRadioData/slot2</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.messaging</name>
+        <fqname>IRadioMessaging/slot2</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.modem</name>
+        <fqname>IRadioModem/slot2</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.network</name>
+        <fqname>IRadioNetwork/slot2</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.sim</name>
+        <fqname>IRadioSim/slot2</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.radio.voice</name>
+        <fqname>IRadioVoice/slot2</fqname>
+    </hal>
+</manifest>
