@@ -294,6 +294,18 @@ PRODUCT_COPY_FILES += \
 # USB
 $(call soong_config_set_bool,android_hardware_mediatek_usb,audio_accessory_supported,true)
 
+# Legacy ION userspace implementation.
+#
+# Android 17 ships libion as a stub whose ion_open() unconditionally returns
+# -1, because upstream dropped the kernel ION interface. This device still
+# runs the classic ION driver (12 heaps are registered and /dev/ion works),
+# and the MTK vendor blobs - libion_mtk.so, the camera HAL, the neuron
+# runtime and libapusys - still allocate through it. With the stub, the
+# apusys ionAllocator aborts while the camera HAL enumerates the arcsoft
+# dual-cam calibration model, which crash-loops camerahalserver and keeps
+# the device from ever reaching boot_completed.
+$(call soong_config_set_bool,libion,legacy_impl,true)
+
 PRODUCT_PACKAGES += \
     android.hardware.usb-service.mediatek \
     android.hardware.usb.gadget-service.mediatek
