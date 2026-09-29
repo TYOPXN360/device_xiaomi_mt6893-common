@@ -363,5 +363,16 @@ $(call soong_config_set,wifi,hal_interface_combinations,$(WIFI_HAL_INTERFACE_COM
 # the pre-U-QPR2 struct stops the wrapper from copying those entries.
 $(call soong_config_set_bool,mediatek_wifi_hal,use_pre_u_qpr2_struct,true)
 
+# Radio. The MediaTek RIL blob only speaks HIDL radio (and registers its IMS
+# instance as IOemRcsService/imsAospSlot1), while the Android 17 framework
+# probes for the AIDL interfaces - RIL.isRadioServiceSupported() checks
+# ServiceManager.isDeclared("android.hardware.radio.ims.IRadioIms/slot1") and
+# friends, and reports "Feature android.hardware.telephony.{ims,data,messaging,
+# calling} is declared, but service ... is missing" for all four.
+# android.hardware.radio-service.compat is the AOSP bridge that publishes the
+# AIDL radio services on top of the HIDL HAL, so ship it.
+PRODUCT_PACKAGES += \
+    android.hardware.radio-service.compat
+
 # Inherit the proprietary files
 $(call inherit-product, vendor/xiaomi/mt6893-common/mt6893-common-vendor.mk)
