@@ -24,12 +24,11 @@
  * service is missing.
  */
 
-#include <android-base/loging.h>
+#include <android-base/logging.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
+#include <android/binder_status.h>
 #include <android/hardware/radio/1.5/IRadio.h>
-#include <hidl/DeathRecipient.h>
-#include <hidl/HidlTransportSupport.h>
 #include <libradiocompat/CallbackManager.h>
 #include <libradiocompat/DriverContext.h>
 #include <libradiocompat/RadioIms.h>
@@ -57,17 +56,6 @@ constexpr char kHidlImsSlot2[] = "imsAospSlot2";
 
 std::vector<std::shared_ptr<ndk::ICInterface>> gPublishedHals;
 
-class DeathRecipient : public android::hidl::DeathRecipient {
-  public:
-    explicit DeathRecipient(std::string instance) : mInstance(std::move(instance)) {}
-    void onDeath() override { LOG(ERROR) << "HIDL radio died for " << mInstance; }
-
-  private:
-    std::string mInstance;
-};
-
-std::map<std::string, android::hidl::DeathRecipient::DeathRecipient> gDeathRecipients;
-
 void publishIms(const std::string& slot, const std::string& hidlInstance) {
     auto radioHidl = IRadio::getService(hidlInstance);
     if (!radioHidl) {
@@ -81,18 +69,15 @@ void publishIms(const std::string& slot, const std::string& hidlInstance) {
         return;
     }
 
-    gDeathRecipients[hidlInstance] = ::new DeathRecipient(hidlInstance);
-    android::hidl::linkToDeath(*radioHidl, gDeathRecipients[hidlInstance], true);
-
     auto context = std::make_shared<DriverContext>();
     auto callbackMgr = std::make_shared<CallbackManager>(context, radioHidl);
 
     auto aidlHal = ndk::SharedRefBase::make<RadioIms>(context, radioHidl, callbackMgr);
     gPublishedHals.push_back(aidlHal);
 
-    const ::binder::Status status = AServiceManager_addService(aidlHal->asBinder().get(),
-                                                             instance.c_str());
-    if (status != OK) {
+    const auto status = AServiceManager_addService(aidlHal->asBinder().get(),
+                                                   instance.c_str());
+    if (status != ::android::OK) {
         LOG(ERROR) << "Failed to publish " << instance << ": " << status;
         return;
     }

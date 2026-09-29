@@ -2,8 +2,13 @@ service vendor.radio-ims-bridge /vendor/bin/hw/radio-ims-bridge
     class hal
     user system
     group system
-    oneshot
     disabled
 
-on post-fs-data
+# The MediaTek RIL registers its HIDL radio services asynchronously, so wait
+# for the RIL to be up before publishing the AIDL IMS service on top of
+# android.hardware.radio@1.x::IRadio/imsAospSlotN.
+on property:init.svc.vendor.ril-daemon-mtk=running
+    start vendor.radio-ims-bridge
+
+on property:ro.bootmode=normal
     start vendor.radio-ims-bridge
