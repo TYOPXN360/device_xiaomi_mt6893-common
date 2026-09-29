@@ -354,5 +354,14 @@ PRODUCT_COPY_FILES += \
 WIFI_HAL_INTERFACE_COMBINATIONS := {{{STA}, 1}}, {{{P2P, NAN}, 1}}
 $(call soong_config_set,wifi,hal_interface_combinations,$(WIFI_HAL_INTERFACE_COMBINATIONS))
 
+# The MediaTek Wi-Fi HAL blob in this vendor predates the U QPR2 RTT entry
+# points. libwifi-hal-wrapper copies the vendor function table by field name,
+# so reading wifi_rtt_range_request_v3/v4 from that older table returns
+# whatever happens to sit past the end of it, and the garbage pointer later
+# takes down the AIDL HAL ("wifi_multi_sta_set_primary_connection" faulting on
+# the same bogus address as the earlier subsystem-restart crash). Selecting
+# the pre-U-QPR2 struct stops the wrapper from copying those entries.
+$(call soong_config_set_bool,mediatek_wifi_hal,use_pre_u_qpr2_struct,true)
+
 # Inherit the proprietary files
 $(call inherit-product, vendor/xiaomi/mt6893-common/mt6893-common-vendor.mk)
