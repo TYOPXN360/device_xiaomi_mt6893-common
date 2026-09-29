@@ -300,6 +300,13 @@ PRODUCT_COPY_FILES += \
 # USB
 $(call soong_config_set_bool,android_hardware_mediatek_usb,audio_accessory_supported,true)
 
+# WLAN assistant. This must be the hardware/mediatek build, which is the one
+# that installs wlan_assistant.rc; the Xiaomi blob of the same name used to
+# shadow it and the daemon then had no init service, so the Wi-Fi NVRAM never
+# reached the driver and WLAN failed with RST_FW_DL_FAIL.
+PRODUCT_PACKAGES += \
+    wlan_assistant
+
 # Legacy ION userspace implementation.
 #
 # Android 17 ships libion as a stub whose ion_open() unconditionally returns
