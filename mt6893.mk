@@ -374,12 +374,5 @@ $(call soong_config_set_bool,mediatek_wifi_hal,use_pre_u_qpr2_struct,true)
 PRODUCT_PACKAGES += \
     android.hardware.radio-service.compat
 
-# ...and the per-slot AIDL instances it is allowed to publish. The bridge
-# skips any instance that is not declared, and its bundled XML leaves them all
-# commented out, so without this the framework keeps reporting every radio
-# feature as missing.
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/vintf/aidl_radio_slots.xml:$(TARGET_COPY_OUT_VENDOR)/etc/vintf/aidl_radio_slots.xml
-
 # Inherit the proprietary files
 $(call inherit-product, vendor/xiaomi/mt6893-common/mt6893-common-vendor.mk)

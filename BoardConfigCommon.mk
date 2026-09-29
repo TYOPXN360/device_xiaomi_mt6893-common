@@ -46,7 +46,9 @@ DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE := \
     $(COMMON_PATH)/framework_compatibility_matrix.xml \
     hardware/mediatek/vintf/mediatek_framework_compatibility_matrix.xml \
     hardware/xiaomi/vintf/xiaomi_framework_compatibility_matrix.xml
-DEVICE_MANIFEST_FILE += $(COMMON_PATH)/manifest.xml
+DEVICE_MANIFEST_FILE += \
+    $(COMMON_PATH)/manifest.xml \
+    $(COMMON_PATH)/vintf/aidl_radio_slots.xml
 
 # Kernel
 BOARD_DTB_OFFSET := 0x07c08000
