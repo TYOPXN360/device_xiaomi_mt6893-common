@@ -1,0 +1,9 @@
+service vendor.radio-ims-bridge /vendor/bin/hw/radio-ims-bridge
+    class hal
+    user system
+    group system
+    oneshot
+    disabled
+
+on post-fs-data
+    start vendor.radio-ims-bridge

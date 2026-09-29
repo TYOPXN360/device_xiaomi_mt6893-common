@@ -372,7 +372,8 @@ $(call soong_config_set_bool,mediatek_wifi_hal,use_pre_u_qpr2_struct,true)
 # android.hardware.radio-service.compat is the AOSP bridge that publishes the
 # AIDL radio services on top of the HIDL HAL, so ship it.
 PRODUCT_PACKAGES += \
-    android.hardware.radio-service.compat
+    android.hardware.radio-service.compat \
+    radio-ims-bridge
 
 # Inherit the proprietary files
 $(call inherit-product, vendor/xiaomi/mt6893-common/mt6893-common-vendor.mk)
