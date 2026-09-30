@@ -93,8 +93,15 @@ PRODUCT_PACKAGES += \
     android.hardware.ir-service.example
 
 # Cgroup
+# Use our own descriptor instead of the stock cgroups_30.json. The stock file
+# mounts cpu and cpuset on cgroup v1, and mounting a v1 hierarchy calls
+# rebind_subsystems(), which strips those controllers out of the v2 default
+# hierarchy - that is why cgroup.controllers only ever listed memory and pids
+# here even though both controllers had dfl_cftypes. Ours leaves them on v2 and
+# activates them there; blkio stays on v1 for the legacy block throttling
+# userspace. See etc/cgroups.json for the details.
 PRODUCT_COPY_FILES += \
-    system/core/libprocessgroup/profiles/cgroups_30.json:$(TARGET_COPY_OUT_VENDOR)/etc/cgroups.json \
+    $(LOCAL_PATH)/etc/cgroups.json:$(TARGET_COPY_OUT_VENDOR)/etc/cgroups.json \
     system/core/libprocessgroup/profiles/task_profiles_30.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
 
 # DebugFS
@@ -377,12 +384,3 @@ PRODUCT_PACKAGES += \
 
 # Inherit the proprietary files
 $(call inherit-product, vendor/xiaomi/mt6893-common/mt6893-common-vendor.mk)
-
-# cgroup v2. The stock /system/etc/cgroups.json mounts cpu and cpuset on cgroup
-# v1, and mounting a v1 hierarchy calls rebind_subsystems(), which strips those
-# controllers out of the v2 default hierarchy - that is why cgroup.controllers
-# only ever showed memory and pids even though both controllers had
-# dfl_cftypes. Ship a vendor descriptor that leaves them on v2 and activates
-# them there. blkio stays on v1 for the legacy block throttling userspace.
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/etc/cgroups.json:$(TARGET_COPY_OUT_VENDOR)/etc/cgroups.json
