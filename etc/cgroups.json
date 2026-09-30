@@ -1,0 +1,65 @@
+{
+  "_comment": [
+    "Vendor cgroup layout for Android 17.",
+    "",
+    "The stock /system/etc/cgroups.json mounts cpu and cpuset on cgroup v1",
+    "paths (/dev/cpuctl, /dev/cpuset). Mounting a v1 hierarchy calls",
+    "rebind_subsystems(), which *removes* those controllers from the v2",
+    "default hierarchy (cgroup.c: cgrp_dfl_root.subsys_mask &=",
+    "~dfl_disable_ss_mask). That is why cgroup.controllers only ever listed",
+    "memory and pids here even though both cpuset and cpu had dfl_cftypes.",
+    "",
+    "So: keep blkio on v1 (legacy block throttling userspace still wants",
+    "it), and do not re-request cpu or cpuset for v1, leaving both attached",
+    "to v2 where the A17 framework expects them. The v2 Controllers list",
+    "below is what actually gets activated under /sys/fs/cgroup.",
+    "",
+    "Note /dev/cpuset is still mounted by init for the MediaTek scheduling",
+    "scripts in init.mt6893.power.rc; those keep working because the kernel",
+    "forces cpuset into v2 semantics (is_in_v2_mode() in cpuset.c is",
+    "hardcoded to return true)."
+  ],
+  "Cgroups": [
+    {
+      "Controller": "blkio",
+      "Path": "/dev/blkio",
+      "Mode": "0775",
+      "UID": "system",
+      "GID": "system"
+    }
+  ],
+  "Cgroups2": {
+    "Path": "/sys/fs/cgroup",
+    "Mode": "0775",
+    "UID": "system",
+    "GID": "system",
+    "Controllers": [
+      {
+        "Controller": "freezer",
+        "Path": "."
+      },
+      {
+        "Controller": "memory",
+        "Path": ".",
+        "NeedsActivation": true,
+        "MaxActivationDepth": 3,
+        "Optional": true
+      },
+      {
+        "Controller": "cpuset",
+        "Path": ".",
+        "Optional": true
+      },
+      {
+        "Controller": "cpu",
+        "Path": ".",
+        "Optional": true
+      },
+      {
+        "Controller": "pids",
+        "Path": ".",
+        "Optional": true
+      }
+    ]
+  }
+}
