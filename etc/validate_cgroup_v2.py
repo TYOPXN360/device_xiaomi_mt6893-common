@@ -346,8 +346,8 @@ def check_cpuset_abi_names():
 def check_memcg_compaction_gate():
     print("memcg compaction is gated on memory.reclaim availability")
     mem = read(MEMCONTROL_C)
-    check('.name = "reclaim"' not in mem,
-          "this kernel has no memory.reclaim cftype (so compaction cannot run)")
+    check('.name = "reclaim"' in mem,
+          "the kernel supplies the memory.reclaim cftype required for memcg compaction")
 
     tp = read(TASK_PROFILES_CPP)
     check("bool CompactMemcgAction::IsValid(" in tp, "CompactMemcgAction::IsValid exists")
@@ -374,6 +374,214 @@ def check_memcg_compaction_gate():
                       r"profileValidForMemcg\(resolvedProfile\)\)", text)
         check(m is not None,
               "the validity check guards the branch (not a later, cosmetic call)")
+
+
+def check_cpu_stat_v2_abi():
+    print("cpu.stat v2 ABI (kernel/sched/core.c)")
+    core = read(os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "kernel", "sched", "core.c"))
+    cpuacct = read(os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "kernel", "sched",
+                                "cpuacct.c"))
+
+    # --- v1 must be untouched -------------------------------------------------
+    m = re.search(r"static int cpu_stats_show\(.*?\n\}", core, re.S)
+    check(m is not None, "found the v1 cpu_stats_show")
+    if m:
+        v1 = m.group(0)
+        check("throttled_time %llu" in v1, "v1 keeps the throttled_time field name")
+        check("div_u64" not in v1, "v1 keeps its raw (unrescaled) value")
+        check("usage_usec" not in v1, "v1 does not gain the v2 field names")
+
+    # --- v2 handler ----------------------------------------------------------
+    m = re.search(r"static int cpu_dfl_stats_show\(.*?\n\}", core, re.S)
+    check(m is not None, "found the v2 cpu_dfl_stats_show")
+    if m:
+        v2 = m.group(0)
+        printed = set(re.findall(r'seq_printf\(sf, "([a-z_]+)', v2))
+        check(printed == {"usage_usec", "user_usec", "system_usec", "nr_periods", "nr_throttled", "throttled_usec"},
+              "v2 cpu.stat reports all six ABI fields",
+              "(printed %s)" % sorted(printed))
+        check("throttled_time" not in printed,
+              "v2 never prints throttled_time as a field name")
+        check("throttled_usec" in printed, "v2 prints throttled_usec")
+        check("NSEC_PER_USEC" in v2,
+              "v2 converts the nanosecond value to microseconds")
+        check("#ifdef CONFIG_CFS_BANDWIDTH" in v2,
+              "v2 has its own CFS_BANDWIDTH branch for the no-bandwidth case")
+        check(v2.count("seq_printf") >= 6,
+              "both the bandwidth and the no-bandwidth arms print all three fields",
+              "(found %d prints)" % v2.count("seq_printf"))
+
+    # --- task_group-backed usage counters -----------------------------------
+    for f in ("usage_usec", "user_usec", "system_usec"):
+        check(f in (m.group(0) if m else ""),
+              "v2 cpu.stat emits %s from per-group counters" % f)
+    check("cpuacct_get_task_group_usage" in core,
+          "core reads task_group counters through the dedicated helper")
+    check("cpuacct_get_task_group_usage" in cpuacct,
+          "cpuacct.c implements the task_group stats reader")
+    check('#include "cpuacct.h"' in core,
+          "core includes the stats helper declaration")
+    check("css_ca(" not in core,
+          "core does not reinterpret a task_group css as a cpuacct css")
+    check("css_tg(css)" in cpuacct,
+          "reader converts the cpu-controller css to task_group")
+    check("READ_ONCE(tsk->sched_task_group)" in cpuacct,
+          "accounting snapshots sched_task_group once")
+    check("for (; tg; tg = tg->parent)" in cpuacct and
+          "if (!tg->parent)" in cpuacct,
+          "accounting walks the parent chain through the root group")
+    check("__this_cpu_add(tg->cpustat->usage_ns, val)" in cpuacct and
+          "__this_cpu_add(tg->cpustat->user_ns, val)" in cpuacct and
+          "__this_cpu_add(tg->cpustat->sys_ns, val)" in cpuacct,
+          "counters use dynamic per-CPU task_group members")
+    check("task_group_account_usage(tsk, cputime)" in cpuacct and
+          "task_group_account_cputime(tsk, index, val)" in cpuacct,
+          "runtime and user/system counters use separate sources")
+    cpuacct_h = read(os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "kernel", "sched",
+                                  "cpuacct.h"))
+    paired_guard = "#if defined(CONFIG_CGROUP_CPUACCT) && defined(CONFIG_CGROUP_SCHED)"
+    check(cpuacct.count(paired_guard) >= 4,
+          "task_group accounting helpers and call sites require both configs")
+    check(core.find(paired_guard) < core.find("root_task_group.cpustat = alloc_percpu"),
+          "root task_group counters are initialized only when both configs are enabled")
+    check("extern void cpuacct_charge" in cpuacct_h and
+          "extern void cpuacct_account_field" in cpuacct_h,
+          "legacy cpuacct APIs remain available under CONFIG_CGROUP_CPUACCT alone")
+    check("#ifdef CONFIG_CGROUP_SCHED" in cpuacct_h and
+          "extern void cpuacct_get_task_group_usage" in cpuacct_h,
+          "the task_group reader declaration is guarded by CONFIG_CGROUP_SCHED")
+    sched = read(os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "kernel", "sched",
+                              "sched.h"))
+    check("struct task_group_cputat" in sched and "usage_ns" in sched and
+          "user_ns" in sched and "sys_ns" in sched,
+          "task_group stores only the three reported per-CPU counters")
+
+    # --- the v2 comment documents counter sources and config -----------------
+    m = re.search(r"/\*\n \* cgroup v2 .cpu\.stat.*?\n \*/", core, re.S)
+    check(m is not None, "the v2 handler carries an explanatory comment")
+    if m:
+        c = m.group(0)
+        for phrase in ("usage_usec", "cpuacct_charge()", "cpuacct_account_field()",
+                       "ancestor", "NSEC_PER_USEC", "CONFIG_CGROUP_CPUACCT"):
+            check(phrase in c, "the comment documents %r" % phrase)
+
+    selftest = os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "tools", "testing",
+                            "selftests", "cgroup")
+    test_c = read(os.path.join(selftest, "cpu_stat_test.c"))
+    test_sh = read(os.path.join(selftest, "run_cpu_stat_test.sh"))
+    test_mk = read(os.path.join(selftest, "Makefile"))
+    top_mk = read(os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "tools", "testing",
+                               "selftests", "Makefile"))
+    check("TARGETS += cgroup" in top_mk,
+          "the cgroup selftest is in the existing kselftest target list")
+    check("include ../lib.mk" in test_mk and "TEST_GEN_PROGS" in test_mk and
+          "TEST_PROGS" in test_mk,
+          "the cgroup test follows the existing kselftest harness")
+    for name in ("test_user_workload", "test_syscall_workload", "test_usage_counter",
+                 "test_parent_includes_children", "test_migration"):
+        check(name in test_c, "selftest covers %s" % name)
+    check('TEST_BINARY="${TEST_BINARY:-' in test_sh,
+          "the shell runner falls back to the test binary beside itself")
+    check('"$TEST_BINARY" "$CG2_MOUNT"' in test_sh,
+          "the shell runner invokes the generated C test")
+    check("cpu_stat_selftest.%d.%ld" in test_c,
+          "the selftest uses a unique per-run cgroup name")
+    check("enable_cpu_controller(parent_dir)" in test_c and
+          "enable_cpu_controller(child_a)" not in test_c and
+          "enable_cpu_controller(child_b)" not in test_c,
+          "only the task-free parent delegates the cpu controller")
+    check("SIGKILL" not in test_c and "kill(" not in test_c,
+          "the selftest never kills processes already in a test cgroup")
+    check("if (mkdir(path, 0755) < 0)" in test_c and "errno != EEXIST" not in test_c,
+          "the selftest refuses to reuse an existing cgroup")
+    last_child_remove = test_c.rfind("rmdir(path)")
+    disable_cpu = test_c.find('write(fd, "-cpu", 4)')
+    parent_remove = test_c.find("rmdir(parent_dir)")
+    check(last_child_remove >= 0 and disable_cpu > last_child_remove and
+          parent_remove > disable_cpu,
+          "cleanup removes children, disables cpu, then removes the parent")
+
+    # --- placement: the handler must exist whenever cpu_dfl_files is compiled -
+    m = re.search(r"static struct cftype cpu_dfl_files\[\] = \{(.*?)\n\};", core, re.S)
+    check(m is not None, "found cpu_dfl_files")
+    if m:
+        check(".seq_show = cpu_dfl_stats_show" in m.group(1),
+              "cpu_dfl_files' stat entry uses the v2 handler")
+        check("throttled_time" not in m.group(1),
+              "cpu_dfl_files does not still point at the v1-only name")
+    # The v2 handler must be defined after the closing of the big CFS_BANDWIDTH
+    # block, otherwise its own #ifdef would be unreachable and the function
+    # would vanish when CONFIG_CFS_BANDWIDTH=n.
+    band_close = core.index("#endif /* CONFIG_CFS_BANDWIDTH */")
+    handler = core.index("static int cpu_dfl_stats_show")
+    check(handler > band_close,
+          "cpu_dfl_stats_show sits outside the CONFIG_CFS_BANDWIDTH block")
+    check(core.index("static struct cftype cpu_dfl_files[]") > handler,
+          "cpu_dfl_stats_show is defined before it is referenced")
+
+
+def check_memcg_reclaim():
+    print("memory.reclaim: upstream reclaim interface and swappiness override")
+    mem = read(MEMCONTROL_C)
+    vmscan = read(os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "mm", "vmscan.c"))
+    swap_h = read(os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "include", "linux",
+                               "swap.h"))
+    doc = read(os.path.join(ROOT, "kernel", "xiaomi", "mt6893", "Documentation",
+                            "cgroup-v2.txt"))
+    tp = read(TASK_PROFILES_CPP)
+
+    check("static ssize_t memory_reclaim(" in mem,
+          "memcontrol implements the upstream write handler")
+    reclaim_entry = mem.find('.name = "reclaim"')
+    check(reclaim_entry >= 0 and "CFTYPE_NOT_ON_ROOT" in mem[reclaim_entry:reclaim_entry + 180],
+          "memory.reclaim is exposed only on non-root memory cgroups")
+    check('"swappiness=%d"' in mem and "memparse(buf, &buf) / PAGE_SIZE" in mem,
+          "the upstream token parser accepts a byte target and nested swappiness key")
+    check("swappiness < 0 || swappiness > 200" in mem,
+          "per-call swappiness is constrained to 0..200")
+    check("MEM_CGROUP_RECLAIM_RETRIES" in mem and "lru_add_drain_all()" in mem,
+          "reclaim retries and drains LRU additions before reporting shortfall")
+    check("!reclaimed && !nr_retries--" in mem and "return -EAGAIN;" in mem,
+          "reclaim exhaustion returns EAGAIN as Android expects")
+    check("try_to_free_mem_cgroup_pages(memcg," in mem and "swappiness < 0 ? NULL" in mem,
+          "the handler passes only an explicit override to the reclaim API")
+    check("int *swappiness);" in swap_h and
+          "int *swappiness)" in vmscan and ".proactive_swappiness = swappiness" in vmscan,
+          "the upstream per-call pointer is carried through scan_control")
+    check("sc_swappiness(sc, memcg)" in vmscan and "return *sc->proactive_swappiness;" in vmscan,
+          "classic and LRU_GEN paths share the upstream policy helper")
+    check('same semantics as vm.swappiness' in doc and "-EAGAIN" in doc,
+          "the local cgroup v2 documentation matches upstream semantics")
+    check("swappiness=0" in tp and "swappiness=200" in tp,
+          "Android libprocessgroup uses supported swappiness values")
+    jni = read(os.path.join(ROOT, "frameworks", "base", "services", "core", "jni",
+                            "com_android_server_am_CachedAppOptimizer.cpp"))
+    check('std::ofstream reclaim_file("/sys/fs/cgroup/system/memory.reclaim")' in jni,
+          "CachedAppOptimizer consumes system memory.reclaim")
+
+
+def check_vr_profiles_untouched():
+    print("VR capacity profiles left alone (no consumer, no inferable mask)")
+    stock = load(STOCK_PROFILES)
+    names = {p["Name"] for p in stock.get("Profiles", [])}
+    vr = ("VrProcessCapacityLow", "VrProcessCapacityNormal", "VrProcessCapacityHigh",
+          "VrServiceCapacityLow", "VrServiceCapacityNormal", "VrServiceCapacityHigh")
+    for n in vr:
+        check(n in names, "%s still exists in the shared AOSP file (unmodified)" % n)
+    ours_p = profile_map(load(TASK_PROFILES_JSON))
+    check(not any(n in ours_p for n in vr),
+          "the device overlay does not redefine any VR profile")
+    aggs = " ".join(" ".join(a["Profiles"]) for a in load(TASK_PROFILES_JSON)
+                    .get("AggregateProfiles", []))
+    check("Vr" not in aggs, "the device overlay references no VR aggregate")
+
+
+def check_cpuset_partitions_absent():
+    print("cpuset partitions: absent in this tree, not backported")
+    src = read(CPUSET_C)
+    for f in ("cpus.exclusive", "cpus.partition", "cpus.isolated"):
+        check(f not in src, "no %s cftype was invented" % f)
+    check("cpuset_partition" not in src, "no partition bookkeeping was added")
 
 
 def check_defconfig():
@@ -449,7 +657,10 @@ def main():
     for fn in (check_single_packaged_file, check_stock_profiles_preserved,
                check_moveto_semantics, check_profiles_are_consumed,
                check_dead_paths_removed, check_cgroups_json,
-               check_cpuset_abi_names, check_memcg_compaction_gate, check_defconfig,
+               check_cpuset_abi_names, check_memcg_compaction_gate,
+               check_cpu_stat_v2_abi, check_memcg_reclaim,
+               check_vr_profiles_untouched, check_cpuset_partitions_absent,
+               check_defconfig,
                check_defconfig_uniqueness, check_no_stale_doc_refs,
                check_vendor_rc_has_no_dead_cpuset):
         fn()
