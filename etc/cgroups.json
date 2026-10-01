@@ -48,16 +48,22 @@
       {
         "Controller": "cpuset",
         "Path": ".",
+        "NeedsActivation": true,
+        "MaxActivationDepth": 1,
         "Optional": true
       },
       {
         "Controller": "cpu",
         "Path": ".",
+        "NeedsActivation": true,
+        "MaxActivationDepth": 1,
         "Optional": true
       },
       {
         "Controller": "pids",
         "Path": ".",
+        "NeedsActivation": true,
+        "MaxActivationDepth": 1,
         "Optional": true
       }
     ]
