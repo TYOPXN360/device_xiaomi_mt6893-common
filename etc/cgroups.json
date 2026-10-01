@@ -14,10 +14,17 @@
     "to v2 where the A17 framework expects them. The v2 Controllers list",
     "below is what actually gets activated under /sys/fs/cgroup.",
     "",
-    "Note /dev/cpuset is still mounted by init for the MediaTek scheduling",
-    "scripts in init.mt6893.power.rc; those keep working because the kernel",
-    "forces cpuset into v2 semantics (is_in_v2_mode() in cpuset.c is",
-    "hardcoded to return true)."
+    "CORRECTION: an earlier version of this comment claimed /dev/cpuset was",
+    "still mounted by init so that the MediaTeK scripts in",
+    "init.mt6893.power.rc kept working. That was wrong, and the scripts were",
+    "silently failing: nothing mounts /dev/cpuset any more, because the Cgroups",
+    "(v1) list below deliberately does not request it. The cpuset writes in",
+    "that rc file have since been removed. Per-state CPU masks are applied on",
+    "v2 instead, by libprocessgroup writing each task's existing",
+    "/apps|system/uid_N/pid_M/cpuset.cpus leaf (see etc/task_profiles.json).",
+    "Do not re-add /dev/cpuset writes, and do not re-request cpuset under",
+    "Cgroups: mounting it on v1 would call rebind_subsystems() and pull it",
+    "back out of the v2 hierarchy again."
   ],
   "Cgroups": [
     {

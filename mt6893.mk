@@ -100,9 +100,17 @@ PRODUCT_PACKAGES += \
 # here even though both controllers had dfl_cftypes. Ours drops them from the v1
 # list so they stay on v2, where the kernel enables them itself; blkio stays on
 # v1 for the legacy block throttling userspace. See etc/cgroups.json.
+#
+# task_profiles.json is a single, complete vendor file: the stock
+# task_profiles_30.json content (it carries the schedtune profiles, which still
+# work because /dev/stune is mounted on v1) plus the cpuset v2 migration kept
+# in etc/task_profiles.json. It cannot be shipped as the stock file plus a
+# small overlay: libprocessgroup reads a single vendor JSON, and
+# PRODUCT_COPY_FILES copies files rather than concatenating them, so two copies
+# to the same destination would only leave whichever landed last.
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/etc/cgroups.json:$(TARGET_COPY_OUT_VENDOR)/etc/cgroups.json \
-    system/core/libprocessgroup/profiles/task_profiles_30.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
+    $(LOCAL_PATH)/etc/task_profiles.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
 
 # DebugFS
 PRODUCT_SET_DEBUGFS_RESTRICTIONS := true

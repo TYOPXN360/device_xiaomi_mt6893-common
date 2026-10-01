@@ -1,0 +1,375 @@
+{
+  "_comment": [
+    "Vendor task_profiles for this device, shipped as the single",
+    "/vendor/etc/task_profiles.json.",
+    "",
+    "This file is the stock system/core/libprocessgroup/profiles/task_profiles_30.json",
+    "verbatim (both STune* attributes and all eleven of its profiles are kept,",
+    "because /dev/stune is still mounted on cgroup v1 and they work), plus the",
+    "cpuset v2 migration described below. It is ONE complete file rather than a",
+    "small overlay: libprocessgroup reads a single vendor JSON, and",
+    "PRODUCT_COPY_FILES copies files rather than concatenating them, so shipping",
+    "the stock file and an overlay to the same destination would only leave",
+    "whichever landed last.",
+    "",
+    "Why the cpuset part exists: cpuset is attached to the v2 default hierarchy",
+    "(see etc/cgroups.json - mounting it on v1 would call rebind_subsystems() and",
+    "pull it back out of v2). The stock /system/etc/task_profiles.json applies the",
+    "per-state CPU masks with cpuset JoinCgroup actions, but a JoinCgroup naming a",
+    "v2 controller is skipped with a warning by",
+    "system/core/libprocessgroup/task_profiles.cpp, so those masks were silently",
+    "dropped and every app ended up with cpuset.cpus 0-7.",
+    "",
+    "How the masks are applied instead: a CpusetCpus attribute (File \"cpus\" for",
+    "the v1 hierarchy, FileV2 \"cpuset.cpus\" for v2) plus a SetAttribute action on",
+    "the capacity profiles. SetAttribute resolves through",
+    "ProfileAttribute::GetPathForTask(), which for a v2 controller uses the task's",
+    "own /proc/<tid>/cgroup path, so the write lands on the task's existing",
+    "/apps|system/uid_N/pid_M/cpuset.cpus leaf. No cgroup is created, no task is",
+    "moved, and the per-UID/PID hierarchy that cgroup.freeze depends on is",
+    "untouched.",
+    "",
+    "The masks are the ones the vendor init rc used to write to /dev/cpuset:",
+    "background/system-background/restricted 0-3, foreground 0-6, top-app and",
+    "camera-daemon 0-7.",
+    "",
+    "Why ProcessCapacityNormal exists and why CPUSET_SP_DEFAULT is redefined: a",
+    "task's leaf keeps whatever mask was written last, so without an explicit",
+    "reset a task returning from a restricted or background state would stay",
+    "pinned to 0-3. AggregateProfiles are replaced wholesale when re-declared,",
+    "so CPUSET_SP_DEFAULT is repeated here with its original TimerSlackNormal",
+    "member plus ProcessCapacityNormal.",
+    "",
+    "Note on re-declaring a Profile: TaskProfile::MoveTo() assigns",
+    "profile->elements_ = std::move(elements_), so a re-declared profile",
+    "REPLACES the stock actions rather than adding to them. That is intended",
+    "here: the eight capacity profiles are replaced by their SetAttribute",
+    "action, which drops the dead v1 cpuset JoinCgroup that v2 ignores anyway",
+    "and adds the mask write that actually works. Any profile that carries a",
+    "still-working action must therefore re-list that action - which is why",
+    "CameraServicePerformance below repeats its schedtune JoinCgroup next to",
+    "the new CpusetCpus SetAttribute."
+  ],
+
+  "Attributes": [
+    {
+      "Name": "STuneBoost",
+      "Controller": "schedtune",
+      "File": "schedtune.boost"
+    },
+    {
+      "Name": "STunePreferIdle",
+      "Controller": "schedtune",
+      "File": "schedtune.prefer_idle"
+    },
+    {
+      "Name": "CpusetCpus",
+      "Controller": "cpuset",
+      "File": "cpus",
+      "FileV2": "cpuset.cpus"
+    }
+  ],
+
+  "Profiles": [
+    {
+      "Name": "HighEnergySaving",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": "background"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NormalPerformance",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": ""
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ServicePerformance",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": "background"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "HighPerformance",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": "foreground"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MaxPerformance",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": "top-app"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RealtimePerformance",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": "rt"
+          }
+        }
+      ]
+    },
+    {
+      "_comment": [
+        "CameraServicePerformance is consumed by",
+        "frameworks/av/services/camera/virtualcamera/virtual_camera.hal.rc",
+        "(\"task_profiles CameraServiceCapacity CameraServicePerformance\").",
+        "MoveTo replaces the action list, so the still-working schedtune",
+        "JoinCgroup is re-listed here next to the new CpusetCpus action: v1",
+        "schedtune keeps working while v2 cpuset gets the 0-7 mask."
+      ],
+      "Name": "CameraServicePerformance",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": "camera-daemon"
+          }
+        },
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-7"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NNApiHALPerformance",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": "nnapi-hal"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "Dex2oatPerformance",
+      "Actions": [
+        {
+          "Name": "JoinCgroup",
+          "Params":
+          {
+            "Controller": "schedtune",
+            "Path": "background"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CpuPolicySpread",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "STunePreferIdle",
+            "Value": "1"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CpuPolicyPack",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "STunePreferIdle",
+            "Value": "0"
+          }
+        }
+      ]
+    },
+
+    {
+      "_comment": [
+        "The profiles below are re-declarations of profiles that live in the",
+        "stock /system/etc/task_profiles.json. TaskProfile::MoveTo() replaces",
+        "the action list, so each of these is now exactly its CpusetCpus",
+        "SetAttribute action. That deliberately drops the stock cpuset",
+        "JoinCgroup: under v2 the loader skips it with a warning anyway, so it",
+        "never ran, and keeping it would only add log noise."
+      ],
+      "Name": "ProcessCapacityLow",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-3"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ProcessCapacityNormal",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-7"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ProcessCapacityHigh",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-6"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ProcessCapacityHighWI",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-6"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ProcessCapacityMax",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-7"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ServiceCapacityLow",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-3"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ServiceCapacityRestricted",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-3"
+          }
+        }
+      ]
+    },
+    {
+      "_comment": [
+        "CameraServiceCapacity has live consumers, so it is not a dead",
+        "profile: cameraserver (frameworks/av/camera/cameraserver/cameraserver.rc,",
+        "\"task_profiles CameraServiceCapacity MaxPerformance\"), virtual_camera",
+        "(frameworks/av/services/camera/virtualcamera/virtual_camera.hal.rc), the",
+        "camera provider HALs under hardware/interfaces/camera/provider,",
+        "vendor/xiaomi/chopin/.../camerahalserver.rc, and",
+        "system/core/init/service_parser.cpp ConvertTaskFileToProfile().",
+        "Its stock JoinCgroup targets the dead /dev/cpuset/camera-daemon path, so",
+        "it is replaced by the 0-7 CpusetCpus mask the vendor init rc used to",
+        "write there. 0-7 equals the inherited default, so this restores the",
+        "documented intent rather than narrowing the CPU set."
+      ],
+      "Name": "CameraServiceCapacity",
+      "Actions": [
+        {
+          "Name": "SetAttribute",
+          "Params":
+          {
+            "Name": "CpusetCpus",
+            "Value": "0-7"
+          }
+        }
+      ]
+    }
+  ],
+
+  "AggregateProfiles": [
+    {
+      "_comment": [
+        "CPUSET_SP_* aggregates are dispatched by name from",
+        "system/core/libprocessgroup/sched_policy.cpp set_cpuset_policy(). Only",
+        "CPUSET_SP_DEFAULT is redefined here, to add the mask reset; the others",
+        "keep their stock membership from /system/etc/task_profiles.json and",
+        "pick up the new SetAttribute through ProcessCapacity*/ServiceCapacity*",
+        "automatically."
+      ],
+      "Name": "CPUSET_SP_DEFAULT",
+      "Profiles": [ "TimerSlackNormal", "ProcessCapacityNormal" ]
+    }
+  ]
+}

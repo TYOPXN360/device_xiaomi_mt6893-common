@@ -1,11 +1,13 @@
 on init
-    # update cpus for cpuset cgroup
-    write /dev/cpuset/background/cpus 0-3
-    write /dev/cpuset/camera-daemon/cpus 0-7
-    write /dev/cpuset/foreground/cpus 0-6
-    write /dev/cpuset/restricted/cpus 0-3
-    write /dev/cpuset/system-background/cpus 0-3
-    write /dev/cpuset/top-app/cpus 0-7
+    # cpuset is deliberately NOT mounted on cgroup v1 here: doing so calls
+    # rebind_subsystems() and strips cpuset (and cpu) back out of the v2
+    # default hierarchy. cpuset lives on v2, where libprocessgroup writes each
+    # task's existing /apps|system/uid_N/pid_M/cpuset.cpus leaf via the
+    # CpusetCpus attribute in etc/task_profiles.json (SetAttribute, since
+    # JoinCgroup is ignored under v2). The per-state masks that used to be
+    # written here - background/system-background/restricted 0-3, foreground
+    # 0-6, top-app/camera-daemon 0-7 - are preserved by that overlay instead
+    # of by absolute paths. Do not reintroduce /dev/cpuset writes.
 
     # Reset stune group setting for NNAPI HAL processes
     write /dev/stune/nnapi-hal/schedtune.boost 0
