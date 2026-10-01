@@ -46,24 +46,27 @@
         "Optional": true
       },
       {
+        "_comment": [
+          "cpuset, cpu and pids are deliberately listed without",
+          "NeedsActivation: the kernel enables them itself right after the",
+          "cgroup2 hierarchy is mounted (cgroup_enable_dfl_controllers() in",
+          "kernel/cgroup/cgroup.c). Asking libprocessgroup to activate them",
+          "as well would be redundant, and libprocessgroup only reaches the",
+          "root, so it could never enable them for the per-uid child groups",
+          "anyway."
+        ],
         "Controller": "cpuset",
         "Path": ".",
-        "NeedsActivation": true,
-        "MaxActivationDepth": 1,
         "Optional": true
       },
       {
         "Controller": "cpu",
         "Path": ".",
-        "NeedsActivation": true,
-        "MaxActivationDepth": 1,
         "Optional": true
       },
       {
         "Controller": "pids",
         "Path": ".",
-        "NeedsActivation": true,
-        "MaxActivationDepth": 1,
         "Optional": true
       }
     ]

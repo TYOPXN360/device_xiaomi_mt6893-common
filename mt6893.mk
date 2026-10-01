@@ -97,9 +97,9 @@ PRODUCT_PACKAGES += \
 # mounts cpu and cpuset on cgroup v1, and mounting a v1 hierarchy calls
 # rebind_subsystems(), which strips those controllers out of the v2 default
 # hierarchy - that is why cgroup.controllers only ever listed memory and pids
-# here even though both controllers had dfl_cftypes. Ours leaves them on v2 and
-# activates them there; blkio stays on v1 for the legacy block throttling
-# userspace. See etc/cgroups.json for the details.
+# here even though both controllers had dfl_cftypes. Ours drops them from the v1
+# list so they stay on v2, where the kernel enables them itself; blkio stays on
+# v1 for the legacy block throttling userspace. See etc/cgroups.json.
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/etc/cgroups.json:$(TARGET_COPY_OUT_VENDOR)/etc/cgroups.json \
     system/core/libprocessgroup/profiles/task_profiles_30.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
