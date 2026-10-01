@@ -47,26 +47,34 @@
       },
       {
         "_comment": [
-          "cpuset, cpu and pids are deliberately listed without",
-          "NeedsActivation: the kernel enables them itself right after the",
-          "cgroup2 hierarchy is mounted (cgroup_enable_dfl_controllers() in",
-          "kernel/cgroup/cgroup.c). Asking libprocessgroup to activate them",
-          "as well would be redundant, and libprocessgroup only reaches the",
-          "root, so it could never enable them for the per-uid child groups",
-          "anyway."
+          "NeedsActivation is what makes libprocessgroup write \"+cpuset\" to",
+          "each cgroup's cgroup.subtree_control, and MaxActivationDepth 3",
+          "reaches root -> apps -> apps/uid_N. createProcessGroupInternal()",
+          "calls ActivateControllers() every time it makes a per-uid group,",
+          "so the controllers land on groups that do not exist yet at boot.",
+          "This has to be done from userspace: the kernel does not propagate",
+          "a parent's subtree_control to a child made with mkdir, and",
+          "enabling cpuset only at the root leaves apps/uid_N without the",
+          "cpuset control files, so no task can be placed there."
         ],
         "Controller": "cpuset",
         "Path": ".",
+        "NeedsActivation": true,
+        "MaxActivationDepth": 3,
         "Optional": true
       },
       {
         "Controller": "cpu",
         "Path": ".",
+        "NeedsActivation": true,
+        "MaxActivationDepth": 3,
         "Optional": true
       },
       {
         "Controller": "pids",
         "Path": ".",
+        "NeedsActivation": true,
+        "MaxActivationDepth": 3,
         "Optional": true
       }
     ]
