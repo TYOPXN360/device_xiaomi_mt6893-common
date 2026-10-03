@@ -584,6 +584,21 @@ def check_cpuset_partitions_absent():
     check("cpuset_partition" not in src, "no partition bookkeeping was added")
 
 
+def check_wifi_hal_concurrency():
+    print("chopin Wi-Fi HAL interface combinations")
+    product = read(MT6893_MK)
+    feature_flags = read(os.path.join(ROOT, "hardware", "interfaces", "wifi", "aidl",
+                                     "default", "wifi_feature_flags.cpp"))
+    combo = "{{{STA}, 1}, {{AP}, 1}}, {{{STA}, 1}, {{P2P, NAN}, 1}}"
+    check(combo in product,
+          "the product advertises STA+AP and STA+P2P/NAN as separate combinations")
+    check("hal_interface_combinations" in product,
+          "the interface combinations are passed into the Wi-Fi AIDL HAL build")
+    check("Interface concurrency combination 1" in feature_flags and
+          "{{AP}, 1}" in feature_flags,
+          "AIDL Wi-Fi HAL parses AP as an explicit concurrency type")
+
+
 def check_defconfig():
     print("chopin_defconfig")
     text = read(CHOPIN_DEFCONFIG)
@@ -659,6 +674,7 @@ def main():
                check_dead_paths_removed, check_cgroups_json,
                check_cpuset_abi_names, check_memcg_compaction_gate,
                check_cpu_stat_v2_abi, check_memcg_reclaim,
+               check_wifi_hal_concurrency,
                check_vr_profiles_untouched, check_cpuset_partitions_absent,
                check_defconfig,
                check_defconfig_uniqueness, check_no_stale_doc_refs,

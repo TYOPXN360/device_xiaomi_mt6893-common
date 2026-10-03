@@ -357,16 +357,11 @@ PRODUCT_COPY_FILES += \
 
 # Wi-Fi HAL interface combinations.
 #
-# Without this, wifi_feature_flags.cpp falls back to kMainModeId = kV1Sta, and
-# WifiChip::handleChipConfiguration() then calls changeFirmwareMode() *before*
-# the legacy HAL has been started. The MediaTek HAL is handed a NULL
-# interface handle at that point ("wifi_multi_sta_set_use_case: handle is
-# null"), the chip is never configured, current_mode_id_ stays invalid so
-# getMode() keeps failing, and the framework restarts the HAL in a loop
-# forever. Declaring the combinations selects the single kV3 mode instead,
-# which skips changeFirmwareMode() and lets the legacy HAL start, populate
-# the interface handles and configure the chip normally.
-WIFI_HAL_INTERFACE_COMBINATIONS := {{{STA}, 1}}, {{{P2P, NAN}, 1}}
+# The HAL uses a single V3 chip mode with two alternatives: STA+AP for
+# tethering, and STA+P2P/NAN for the other concurrency use cases. Without
+# this declaration, wifi_feature_flags.cpp falls back to kV1Sta and the
+# MediaTek HAL receives changeFirmwareMode() before it has started.
+WIFI_HAL_INTERFACE_COMBINATIONS := {{{STA}, 1}, {{AP}, 1}}, {{{STA}, 1}, {{P2P, NAN}, 1}}
 $(call soong_config_set,wifi,hal_interface_combinations,$(WIFI_HAL_INTERFACE_COMBINATIONS))
 
 # The MediaTek Wi-Fi HAL blob in this vendor predates the U QPR2 RTT entry
