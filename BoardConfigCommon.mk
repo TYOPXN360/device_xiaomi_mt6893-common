@@ -100,7 +100,7 @@ BOARD_SYSTEM_EXTIMAGE_FILE_SYSTEM_TYPE := $(PRODUCT_SYSTEM_PARTITIONS_FILE_SYSTE
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := erofs
 
 BOARD_PRODUCTIMAGE_MINIMAL_PARTITION_RESERVED_SIZE := false
--include vendor/lineage/config/BoardConfigReservedSize.mk
+# LineageOS reserved-size overrides have no AOSP equivalent; removed for AOSP bringup.
 
 TARGET_COPY_OUT_SYSTEM_EXT := system_ext
 TARGET_COPY_OUT_PRODUCT := product
