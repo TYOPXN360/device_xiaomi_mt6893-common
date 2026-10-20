@@ -7,3 +7,10 @@ allow mtk_hal_camera vendor_camera_data_file:dir rw_dir_perms;
 allow mtk_hal_camera vendor_camera_data_file:file create_file_perms;
 
 hal_client_domain(mtk_hal_camera, hal_mtk_mmagent)
+
+# The camera HAL is a prebuilt from the Android 13 vendor image and still
+# allocates through ION rather than dma-heap. Without this it cannot even
+# open /dev/ion, so IonDevice ends up with mDeviceFd == -1 and every
+# ion_import call fails with EBADF -- which is what stops the first 3A
+# allocation and therefore capture-session configuration.
+allow mtk_hal_camera ion_device:chr_file rw_file_perms;

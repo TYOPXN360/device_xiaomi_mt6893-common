@@ -1,1 +1,8 @@
 hal_client_domain(surfaceflinger, hal_mtk_mmagent)
+# The display pipeline composes frames through MTK's MDP, whose DpIonHandler
+# still opens /dev/ion (the vendor composer is an Android 13 prebuilt). Without
+# this, surfaceflinger cannot import the camera's preview buffers and the
+# preview comes up black:
+#   E ion: mt_ion_open failed!, ret = -1
+#   E MDP: DpIonHandler: open ION device failed
+allow surfaceflinger ion_device:chr_file rw_file_perms;
