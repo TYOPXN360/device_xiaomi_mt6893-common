@@ -133,6 +133,22 @@ blob_fixups: blob_fixups_user_type = {
      'vendor/lib64/libstagefrightdolby.so',
      'vendor/lib64/mediadrm/libwvdrmengine.so'): blob_fixup()
         .replace_needed('libstagefright_foundation.so', 'libstagefright_foundation-v33.so'),
+    # APUSYS is the APU/MDLA runtime behind the camera's AI 3A. It resolves its
+    # ION entry points from libion.so, which in this AOSP release rejects every
+    # call before reaching the kernel, so each inference buffer import failed:
+    #
+    #   apusys: import: fail to get ion buffer by import (devFd=18, shared_fd=227)
+    #   neuron : MDLA failed to import ion fd (372) in HintFrontendBuffer!
+    #
+    # Point it at the shim instead. libio2.so is the same length as libion.so,
+    # so the DT_NEEDED entry is rewritten in place; libion_mtk.so stays because
+    # ion_alloc_camera() lives only there. This library needs no ion_alloc_camera
+    # itself, so resolution is fully covered by the shim.
+    'vendor/lib64/libapusys.so': blob_fixup()
+        .binary_regex_replace(
+            b'libion.so\x00', b'libio2.so\x00',
+            occurances=1,
+        ),
 
 }  # fmt: skip
 
